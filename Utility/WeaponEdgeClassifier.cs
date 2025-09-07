@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using JetBrains.Annotations;
 using Unity.Burst;
@@ -12,7 +11,7 @@ using WeaponsMath.Data;
 using WeaponsMath.Enums;
 using WeaponsMath.Jobs;
 
-namespace WeaponsMath
+namespace WeaponsMath.Utility
 {
     [BurstCompile] public static class WeaponEdgeClassifier
     {

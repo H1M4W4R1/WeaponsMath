@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.Assertions;
 using WeaponsMath.Utility;
 
-namespace WeaponsMath
+namespace WeaponsMath.Components
 {
     /// <summary>
     ///     Vertex velocity component is class that should be used on both hitbox and

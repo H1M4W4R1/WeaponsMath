@@ -1,5 +1,6 @@
 ﻿using System;
 using UnityEngine;
+using WeaponsMath.Components;
 using WeaponsMath.Utility;
 
 namespace WeaponsMath.Debugging

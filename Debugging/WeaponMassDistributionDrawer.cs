@@ -1,6 +1,7 @@
 ﻿using JetBrains.Annotations;
 using Unity.Collections;
 using UnityEngine;
+using WeaponsMath.Utility;
 
 namespace WeaponsMath.Debugging
 {

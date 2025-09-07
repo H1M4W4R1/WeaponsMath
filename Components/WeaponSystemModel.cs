@@ -1,10 +1,8 @@
-﻿using System;
-using Unity.Collections;
-using Unity.Mathematics;
+﻿using Unity.Collections;
 using UnityEngine;
 using UnityEngine.Assertions;
 
-namespace WeaponsMath
+namespace WeaponsMath.Components
 {
     /// <summary>
     ///     Class used to store weapon system model data (triangles, vertices, etc.)

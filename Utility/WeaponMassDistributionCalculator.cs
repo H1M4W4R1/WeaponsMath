@@ -6,7 +6,7 @@ using UnityEngine;
 using UnityEngine.Assertions;
 using WeaponsMath.Jobs;
 
-namespace WeaponsMath
+namespace WeaponsMath.Utility
 {
     [BurstCompile] public sealed class WeaponMassDistributionCalculator
     {

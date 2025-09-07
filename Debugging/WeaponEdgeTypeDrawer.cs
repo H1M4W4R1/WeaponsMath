@@ -6,6 +6,7 @@ using Unity.Mathematics;
 using UnityEngine;
 using WeaponsMath.Data;
 using WeaponsMath.Enums;
+using WeaponsMath.Utility;
 
 namespace WeaponsMath.Debugging
 {
