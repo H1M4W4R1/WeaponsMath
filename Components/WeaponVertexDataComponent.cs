@@ -87,10 +87,7 @@ namespace WeaponsMath.Components
                     dotProduct = math.dot(math.normalize(_vertexVelocityComponent.Velocities[i]), normal);
                     velocity = math.lengthsq(_vertexVelocityComponent.Velocities[i]);
                 }
-
-                dotProduct = math.pow(dotProduct, 4);
-               
-
+ 
                 // Draw edge type debug
                 Gizmos.DrawSphere(vertexWorldPosition, sphereSize);
                 Gizmos.DrawLine(vertexWorldPosition, vertexWorldPosition + normal * (normalLength * dotProduct * velocity));

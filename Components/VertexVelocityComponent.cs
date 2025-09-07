@@ -9,10 +9,13 @@ namespace WeaponsMath.Components
     ///     Vertex velocity component is class that should be used on both hitbox and
     ///     weapon objects to store per-vertex velocity data that is further used to compute
     ///     relative velocity between objects at hit position.
-    ///     TODO: Store energy based on velocity (time-based decay storage of energy to prevent wrist flicking)
     /// </summary>
     [RequireComponent(typeof(WeaponSystemModel))] public sealed class VertexVelocityComponent : MonoBehaviour
     {
+        [Header("Configuration")] [SerializeField]
+        [Tooltip("Alternatively: how long should swing last to grant full energy")]
+        private float energyCalculationFrame = 1f;
+        
         [Header("Debug")] [SerializeField] private bool enableDebug;
         [SerializeField] private float debugLineLength = 1f;
 
@@ -92,6 +95,7 @@ namespace WeaponsMath.Components
             for (int n = 0; n < _model.Mesh.vertexCount; n++)
             {
                 _lastVertexPositions[n] = _modelTransform.TransformPoint(_model.Vertices[n]);
+                _vertexVelocities[n] = Vector3.zero;
             }
         }
 
@@ -110,10 +114,17 @@ namespace WeaponsMath.Components
                 Vector3 previousVertexPosition = _lastVertexPositions[n];
 
                 // Compute vertex velocity
-                Vector3 vertexVelocity = (currentVertexPosition - previousVertexPosition) / _accumulatedTime;
+                Vector3 vertexVelocity;
+                if(_accumulatedTime > 0f) vertexVelocity = (currentVertexPosition - previousVertexPosition) / _accumulatedTime;
+                else vertexVelocity = Vector3.zero;
 
+                // Compute delta
+                Vector3 velocityDelta = vertexVelocity - _vertexVelocities[n];
+                if(energyCalculationFrame > 0f)
+                    velocityDelta *= _accumulatedTime / energyCalculationFrame;
+                
                 // Store vertex velocity and last position to array
-                _vertexVelocities[n] = vertexVelocity;
+                _vertexVelocities[n] += velocityDelta;
                 _lastVertexPositions[n] = currentVertexPosition;
             }
 

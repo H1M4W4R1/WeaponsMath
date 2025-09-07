@@ -1,6 +1,4 @@
-﻿using WeaponsMath.Enums;
-
-namespace WeaponsMath.Data
+﻿namespace WeaponsMath.Data
 {
     public readonly ref struct WeaponMeshClassificationResult
     {

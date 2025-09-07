@@ -1,10 +1,8 @@
 ﻿using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using JetBrains.Annotations;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
-using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Assertions;
 using WeaponsMath.Data;
