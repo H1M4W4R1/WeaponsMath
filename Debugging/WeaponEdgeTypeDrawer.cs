@@ -1,5 +1,7 @@
 ﻿// Example MonoBehaviour to compute per-vertex continuous score and visualize in Editor (Gizmos)
 
+using Unity.Collections;
+using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
 using WeaponsMath.Data;
@@ -24,7 +26,7 @@ namespace WeaponsMath.Debugging
         [Tooltip("Movement vector, used to affect drawn values")] public Vector3 movementVector = Vector3.forward;
         [Tooltip("Movement velocity, used to affect drawn values")] public float velocity = 1f;
 
-        private float[] scores;
+        private NativeArray<float> scores;
 
         [ContextMenu("Classify")] private void Classify()
         {
@@ -32,9 +34,11 @@ namespace WeaponsMath.Debugging
             Mesh mesh = meshFilter.sharedMesh;
             if (mesh == null) return;
 
+            // Clear scores if created
+            if(scores.IsCreated) scores.Dispose();
+            
             // Perform classification and store results
-            WeaponMeshClassificationResult result = WeaponEdgeClassifier.ClassifyAllVertices(mesh, parameters);
-            scores = result.scores;
+            WeaponEdgeClassifier.ClassifyAllVertices(mesh, parameters, out scores, Allocator.Persistent);
         }
 
         private void OnValidate()
@@ -52,11 +56,15 @@ namespace WeaponsMath.Debugging
 
         private void OnDrawGizmosSelected()
         {
-            if (scores == null) Classify();
+            // Ensure everything exists
             if (meshFilter == null) return;
             Mesh mesh = meshFilter.sharedMesh;
             if (mesh == null) return;
-
+            
+            // Classify if not already classified
+            if (!scores.IsCreated) Classify();
+            
+            // Grab basic data
             Transform meshTransform = meshFilter.transform;
             Vector3 position = meshTransform.position;
 

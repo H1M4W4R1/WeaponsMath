@@ -28,8 +28,8 @@ namespace WeaponsMath.Debugging
                 Vector3 vertexWorldPosition = meshTransform.TransformPoint(verts[i]);
                 float normalizedFactor = mass[i];
 
-                Gizmos.color = Color.Lerp(Color.black, Color.white, normalizedFactor);
-                Gizmos.DrawSphere(vertexWorldPosition, baseSphereRadius * normalizedFactor);
+                Gizmos.color = Color.black;
+                Gizmos.DrawWireSphere(vertexWorldPosition, baseSphereRadius * normalizedFactor);
             }
             
             mass.Dispose();

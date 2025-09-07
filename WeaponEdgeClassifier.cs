@@ -2,69 +2,105 @@
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using JetBrains.Annotations;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Assertions;
 using WeaponsMath.Data;
 using WeaponsMath.Enums;
 using WeaponsMath.Jobs;
 
 namespace WeaponsMath
 {
-    public static class WeaponEdgeClassifier
+    [BurstCompile] public static class WeaponEdgeClassifier
     {
         // Keeps adjacency per mesh instance as flattened arrays (start indices + neighbor list)
         private static readonly Dictionary<int, WeaponMeshAdjacencyDataFlattened> adjacencyCache = new();
 
         /// <summary>
-        ///     Public entry - returns managed arrays for scores and types.
-        ///     Blocks until job completes.
+        ///     Classifies all vertices of a mesh.
         /// </summary>
-        public static WeaponMeshClassificationResult ClassifyAllVertices(
+        [BurstDiscard] public static void ClassifyAllVertices(
             [NotNull] Mesh mesh,
-            WeaponEdgeClassifierParams p)
+            WeaponEdgeClassifierParams p,
+            out NativeArray<float> scores,
+            Allocator allocator = Allocator.TempJob)
         {
-            if (mesh == null) throw new ArgumentNullException(nameof(mesh));
-            int vc = mesh.vertexCount;
-            if (vc == 0)
-                return new WeaponMeshClassificationResult(Array.Empty<float>());
+            Assert.IsNotNull(mesh, "Mesh must not be null");
+            Assert.IsTrue(mesh.vertexCount > 0, "Mesh must have at least one vertex");
 
             // Build or get adjacency flattened arrays
             WeaponMeshAdjacencyDataFlattened data = GetOrBuildAdjacencyFlattened(mesh);
-            
-            // Base classification
-            return ClassifyAllVertices(mesh.vertices, mesh.normals, p, data);
+
+            // Get & copy vertices and normals
+            Vector3[] verticesArray = mesh.vertices;
+            Vector3[] normalsArray = mesh.normals;
+
+            // Classify vertices
+            ClassifyAllVertices(verticesArray, normalsArray, p, data, out scores, allocator);
         }
 
-        public static WeaponMeshClassificationResult ClassifyAllVertices(
-            [NotNull] Vector3[] vertices,
-            [NotNull] Vector3[] normals,
+        /// <summary>
+        ///     Classifies all vertices from provided mesh data.
+        /// </summary>
+        public static void ClassifyAllVertices(
+            [NotNull] Vector3[] verticesArray,
+            [NotNull] Vector3[] normalsArray,
             WeaponEdgeClassifierParams p,
-            WeaponMeshAdjacencyDataFlattened weaponAdjacencyData)
+            WeaponMeshAdjacencyDataFlattened data,
+            out NativeArray<float> scores,
+            Allocator allocator = Allocator.TempJob)
         {
-            // Vertex count
-            int vc = vertices.Length;
+            Assert.IsNotNull(verticesArray, "Vertices array must not be null");
+            Assert.IsNotNull(normalsArray, "Normals array must not be null");
+            Assert.IsTrue(verticesArray.Length == normalsArray.Length,
+                "Vertices and normals arrays must have the same length");
+            Assert.IsTrue(verticesArray.Length > 0, "Vertices array must not be empty");
+            Assert.IsTrue(data.neighbors.IsCreated && data.neighborStarts.IsCreated,
+                "Adjacency data must be created");
 
-            // Validate normals exist
-            if (normals == null || normals.Length != vertices.Length)
-                throw new InvalidOperationException("Mesh must have normals (mesh.normals).");
+            // Create native arrays for vertices and normals
+            NativeArray<Vector3> vertices = new(verticesArray, Allocator.TempJob);
+            NativeArray<Vector3> normals = new(normalsArray, Allocator.TempJob);
 
-            // Convert managed arrays to NativeArray read-only views for job
-            NativeArray<Vector3> verticesNative = new(vertices, Allocator.TempJob);
-            NativeArray<Vector3> normalsNative = new(normals, Allocator.TempJob);
-            NativeArray<int> neighborStartsNative = new(weaponAdjacencyData.neighborStarts, Allocator.TempJob);
-            NativeArray<int> neighborsNative = new(weaponAdjacencyData.neighbors, Allocator.TempJob);
+            // Base classification entry point
+            ClassifyAllVertices(vertices, normals, p, data, out scores, out JobHandle handle, allocator);
+            handle.Complete();
 
-            NativeArray<float> scoresNative = new(vc, Allocator.TempJob);
+            // Dispose native arrays
+            vertices.Dispose();
+            normals.Dispose();
+        }
+
+        /// <summary>
+        ///     Classifies all vertices from provided mesh data.
+        /// </summary>
+        [BurstCompile] public static void ClassifyAllVertices(
+            in NativeArray<Vector3> vertices,
+            in NativeArray<Vector3> normals,
+            in WeaponEdgeClassifierParams p,
+            in WeaponMeshAdjacencyDataFlattened weaponAdjacencyData,
+            out NativeArray<float> scores,
+            out JobHandle handle,
+            Allocator allocator = Allocator.TempJob)
+        {
+            Assert.IsTrue(vertices.IsCreated && normals.IsCreated, "Vertices and normals must be created");
+            Assert.IsTrue(weaponAdjacencyData.neighbors.IsCreated && weaponAdjacencyData.neighborStarts.IsCreated,
+                "Adjacency data must be created");
+            Assert.IsTrue(vertices.Length == normals.Length, "Vertices and normals must have the same length");
+            Assert.IsTrue(vertices.Length > 0, "Vertices must not be empty");
+            
+            scores = new NativeArray<float>(vertices.Length, allocator);
 
             // Schedule job to classify vertices
             ClassifyWeaponVerticesJob job = new()
             {
-                vertices = verticesNative,
-                normals = normalsNative,
-                neighborStarts = neighborStartsNative,
-                neighbors = neighborsNative,
+                vertices = vertices,
+                normals = normals,
+                neighborStarts = weaponAdjacencyData.neighborStarts,
+                neighbors = weaponAdjacencyData.neighbors,
                 // copy params
                 depth = p.depth,
                 maxNeighbors = p.maxNeighbors,
@@ -75,25 +111,10 @@ namespace WeaponsMath
                 minSqrDistance = p.minSqrDistance,
                 maxCollected = p.maxCollected,
 
-                outScores = scoresNative,
+                outScores = scores,
             };
 
-            JobHandle handle = job.Schedule(vc, 64); // batch size 64
-            handle.Complete();
-
-            // Copy back to managed arrays
-            float[] scores = new float[vc];
-            scoresNative.CopyTo(scores);
-
-            // Dispose
-            verticesNative.Dispose();
-            normalsNative.Dispose();
-            neighborStartsNative.Dispose();
-            neighborsNative.Dispose();
-            scoresNative.Dispose();
-
-            // Return result
-            return new WeaponMeshClassificationResult(scores);
+            handle = job.Schedule(vertices.Length, 64); // batch size 64
         }
 
         /// <summary>
@@ -108,20 +129,21 @@ namespace WeaponsMath
             // Classify
             byte type;
             float normalizedScore = math.remap(0f, 2f, 0f, 1f, score);
-            
+
             if (normalizedScore <= p.splitLow)
                 type = (byte) WeaponEdgeType.Blunt;
             else if (normalizedScore >= p.splitHigh)
                 type = (byte) WeaponEdgeType.Spike;
             else
                 type = (byte) WeaponEdgeType.Blade;
-            
+
             return (WeaponEdgeType) type;
         }
 
 #region Adjacency tables with flattening
 
-        private static WeaponMeshAdjacencyDataFlattened GetOrBuildAdjacencyFlattened([NotNull] Mesh mesh)
+        [BurstDiscard]
+        public static WeaponMeshAdjacencyDataFlattened GetOrBuildAdjacencyFlattened([NotNull] Mesh mesh)
         {
             int id = mesh.GetInstanceID();
             if (adjacencyCache.TryGetValue(id, out WeaponMeshAdjacencyDataFlattened cached)) return cached;
@@ -148,7 +170,11 @@ namespace WeaponsMath
                 for (int j = 0; j < list.Count; ++j) neighbors[offset + j] = list[j];
             }
 
-            cached = new WeaponMeshAdjacencyDataFlattened(starts, neighbors);
+            // Convert to native arrays
+            NativeArray<int> startsNative = new(starts, Allocator.Persistent);
+            NativeArray<int> neighborsNative = new(neighbors, Allocator.Persistent);
+
+            cached = new WeaponMeshAdjacencyDataFlattened(startsNative, neighborsNative);
             adjacencyCache[id] = cached;
             return cached;
         }
@@ -158,7 +184,7 @@ namespace WeaponsMath
         /// </summary>
         /// <param name="mesh">Mesh to build adjacency for</param>
         /// <returns>Adjacency lists in an array form</returns>
-        [NotNull] private static List<int>[] BuildAdjacencyLists([NotNull] Mesh mesh)
+        [BurstDiscard] [NotNull] private static List<int>[] BuildAdjacencyLists([NotNull] Mesh mesh)
         {
             int n = mesh.vertexCount;
             List<int>[] adj = new List<int>[n];
@@ -185,7 +211,7 @@ namespace WeaponsMath
         /// <param name="adj">Adjacency lists</param>
         /// <param name="from">Index of the first vertex</param>
         /// <param name="to">Index of the second vertex</param>
-        private static void AddEdge([NotNull] List<int>[] adj, int from, int to)
+        [BurstDiscard] private static void AddEdge([NotNull] List<int>[] adj, int from, int to)
         {
             List<int> list = adj[from];
 
