@@ -2,7 +2,6 @@
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Assertions;
-using UnityEngine.UIElements;
 using WeaponsMath.Data;
 using WeaponsMath.Enums;
 using WeaponsMath.Utility;
@@ -81,15 +80,20 @@ namespace WeaponsMath.Components
                 Vector3 normal = meshTransform.TransformDirection(_model.Normals[i]);
                 
                 float dotProduct = 1f;
-                if (velocityAffectsNormal && hasVertexVelocityComponent &&
+                float velocity = 1f;
+                if (velocityAffectsNormal && hasVertexVelocityComponent &&  
                     _vertexVelocityComponent.Velocities.Length > i)
                 {
-                    dotProduct = math.dot(_vertexVelocityComponent.Velocities[i], normal);
+                    dotProduct = math.dot(math.normalize(_vertexVelocityComponent.Velocities[i]), normal);
+                    velocity = math.length(_vertexVelocityComponent.Velocities[i]);
                 }
+
+                dotProduct = math.pow(dotProduct, 4);
+               
 
                 // Draw edge type debug
                 Gizmos.DrawSphere(vertexWorldPosition, sphereSize);
-                Gizmos.DrawLine(vertexWorldPosition, vertexWorldPosition + normal * (normalLength * dotProduct));
+                Gizmos.DrawLine(vertexWorldPosition, vertexWorldPosition + normal * (normalLength * dotProduct * velocity));
 
                 // Draw mass debug
                 Gizmos.color = Color.black;
