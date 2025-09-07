@@ -14,9 +14,10 @@ and blade.
 
 # How it works
 
-The algorithm is based on mesh triangles, vertices and normals. When vertex neighbours are meeting criteria 
-specified for edge type against this vertex normal axis, it's marked as such. It can also factor distance between 
-vertex and neighbours and some other minor modifiers into computation algorithm.
+The algorithm is based on mesh triangles, vertices and normals. When distance vector between current vertex and 
+specified neighbour and normal vector dot product (angle) meets desired criteria of parallelism to perpendicularity 
+ratio then it's marked as edge of specified type.
+It can also factor distance between vertex and neighbours and some other minor modifiers into computation algorithm.
 
 In other short terms: my brain wrote this at 1am on Saturday and I have no f-ing idea why this works so well...
 Okay, unless you're using too complex mesh.
