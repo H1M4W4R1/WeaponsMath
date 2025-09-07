@@ -1,4 +1,5 @@
 ﻿using JetBrains.Annotations;
+using Unity.Collections;
 using UnityEngine;
 
 namespace WeaponsMath.Debugging
@@ -16,9 +17,8 @@ namespace WeaponsMath.Debugging
             Mesh mesh = meshFilter.sharedMesh;
             if (mesh == null) return;
 
+            WeaponMassDistributionCalculator.ComputeVertexMasses(mesh, out NativeArray<float> mass);
             
-            float[] mass = ComputeVertexMasses(mesh, 1f);
-
             Transform meshTransform = meshFilter.transform;
 
             Vector3[] verts = mesh.vertices;
@@ -31,32 +31,8 @@ namespace WeaponsMath.Debugging
                 Gizmos.color = Color.Lerp(Color.black, Color.white, normalizedFactor);
                 Gizmos.DrawSphere(vertexWorldPosition, baseSphereRadius * normalizedFactor);
             }
-        }
-
-        [NotNull] private float[] ComputeVertexMasses([NotNull] Mesh mesh, float totalMass)
-        {
-            Vector3[] verts = mesh.vertices;
-            int[] tris = mesh.triangles;
-            float[] weights = new float[verts.Length];
-
-            for (int i = 0; i < tris.Length; i += 3)
-            {
-                Vector3 a = verts[tris[i]];
-                Vector3 b = verts[tris[i + 1]];
-                Vector3 c = verts[tris[i + 2]];
-
-                float area = Vector3.Cross(b - a, c - a).magnitude * 0.5f;
-                weights[tris[i]] += area;
-                weights[tris[i + 1]] += area;
-                weights[tris[i + 2]] += area;
-            }
-
-            float sum = 0;
-            foreach (float weight in weights) sum += weight;
-
-            for (int i = 0; i < weights.Length; i++) weights[i] = (weights[i] / sum) * totalMass;
-
-            return weights;
+            
+            mass.Dispose();
         }
     }
 }
