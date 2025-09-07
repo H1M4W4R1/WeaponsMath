@@ -5,7 +5,7 @@ using UnityEngine;
 using WeaponsMath.Data;
 using WeaponsMath.Enums;
 
-namespace WeaponsMath
+namespace WeaponsMath.Debugging
 {
     public sealed class WeaponEdgeTypeDrawer : MonoBehaviour
     {
