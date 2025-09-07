@@ -11,6 +11,9 @@ namespace WeaponsMath
         public MeshFilter meshFilter;
         public WeaponEdgeClassifierParams parameters = WeaponEdgeClassifierParams.Default;
 
+        public float normalLength = 0.01f;
+        public float baseSphereRadius = 0.002f;
+
         private float[] scores;
         private WeaponEdgeType[] types;
 
@@ -19,7 +22,7 @@ namespace WeaponsMath
             if (meshFilter == null) return;
             Mesh mesh = meshFilter.sharedMesh;
             if (mesh == null) return;
-            
+
             // Perform classification and store results
             WeaponMeshClassificationResult result = WeaponEdgeClassifier.ClassifyAllVertices(mesh, parameters);
             scores = result.scores;
@@ -32,7 +35,8 @@ namespace WeaponsMath
             parameters.depth = Mathf.Clamp(parameters.depth, 1, 32);
             parameters.splitLow = Mathf.Clamp01(parameters.splitLow);
             parameters.splitHigh = Mathf.Clamp01(parameters.splitHigh);
-            if (parameters.splitLow >= parameters.splitHigh) parameters.splitHigh = Mathf.Min(1f, parameters.splitLow + 0.01f);
+            if (parameters.splitLow >= parameters.splitHigh)
+                parameters.splitHigh = Mathf.Min(1f, parameters.splitLow + 0.01f);
         }
 
         private void OnDrawGizmosSelected()
@@ -41,13 +45,15 @@ namespace WeaponsMath
             if (meshFilter == null) return;
             Mesh mesh = meshFilter.sharedMesh;
             if (mesh == null) return;
-            
+
+            Transform meshTransform = meshFilter.transform;
+
             Vector3[] verts = mesh.vertices;
             for (int i = 0; i < verts.Length; ++i)
             {
-                Vector3 world = meshFilter.transform.TransformPoint(verts[i]);
+                Vector3 vertexWorldPosition = meshTransform.TransformPoint(verts[i]);
                 if (i >= scores!.Length) return;
-                
+
                 float score = scores![i]; // 0..2
                 // visualize: blue=blunt, white=blade, red=spike
                 WeaponEdgeType type = types![i];
@@ -57,15 +63,12 @@ namespace WeaponsMath
                     case WeaponEdgeType.Blade: Gizmos.color = Color.green; break;
                     case WeaponEdgeType.Spike: Gizmos.color = Color.red; break;
                 }
-                
-                Gizmos.DrawSphere(world, 0.002f * (1f + score));
-                
-                Color c = Color.Lerp(Color.black, Color.white, score/2f);
-                Gizmos.color = c;
-                Gizmos.DrawWireSphere(world, 0.003f * (1f + score));
-                
-               
-       
+
+                Gizmos.DrawSphere(vertexWorldPosition, baseSphereRadius * (1f + score));
+
+                // Draw normal
+                Vector3 normal = meshTransform.TransformDirection(mesh.normals[i]);
+                Gizmos.DrawLine(vertexWorldPosition, vertexWorldPosition + normal * normalLength);
             }
         }
     }
