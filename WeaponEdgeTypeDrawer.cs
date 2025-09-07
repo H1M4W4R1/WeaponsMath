@@ -6,13 +6,13 @@ using WeaponsMath.Enums;
 
 namespace WeaponsMath
 {
-    public sealed class EdgeTypeDebugger : MonoBehaviour
+    public sealed class WeaponEdgeTypeDrawer : MonoBehaviour
     {
         public MeshFilter meshFilter;
         public WeaponEdgeClassifierParams parameters = WeaponEdgeClassifierParams.Default;
 
         private float[] scores;
-        private EdgeType[] types;
+        private WeaponEdgeType[] types;
 
         [ContextMenu("Classify")] private void Classify()
         {
@@ -21,7 +21,7 @@ namespace WeaponsMath
             if (mesh == null) return;
             
             // Perform classification and store results
-            VerticesClassificationResult result = VertexEdgeClassifier.ClassifyAllVertices(mesh, parameters);
+            WeaponMeshClassificationResult result = WeaponEdgeClassifier.ClassifyAllVertices(mesh, parameters);
             scores = result.scores;
             types = result.types;
         }
@@ -50,12 +50,12 @@ namespace WeaponsMath
                 
                 float score = scores![i]; // 0..2
                 // visualize: blue=blunt, white=blade, red=spike
-                EdgeType type = types![i];
+                WeaponEdgeType type = types![i];
                 switch (type)
                 {
-                    case EdgeType.Blunt: Gizmos.color = Color.blue; break;
-                    case EdgeType.Blade: Gizmos.color = Color.green; break;
-                    case EdgeType.Spike: Gizmos.color = Color.red; break;
+                    case WeaponEdgeType.Blunt: Gizmos.color = Color.blue; break;
+                    case WeaponEdgeType.Blade: Gizmos.color = Color.green; break;
+                    case WeaponEdgeType.Spike: Gizmos.color = Color.red; break;
                 }
                 
                 Gizmos.DrawSphere(world, 0.002f * (1f + score));

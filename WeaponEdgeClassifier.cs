@@ -12,22 +12,22 @@ using WeaponsMath.Jobs;
 
 namespace WeaponsMath
 {
-    public static class VertexEdgeClassifier
+    public static class WeaponEdgeClassifier
     {
         // Keeps adjacency per mesh instance as flattened arrays (start indices + neighbor list)
-        private static readonly Dictionary<int, AdjacencyDataFlattened> adjacencyCache = new();
+        private static readonly Dictionary<int, WeaponMeshAdjacencyDataFlattened> adjacencyCache = new();
 
         /// <summary>
         ///     Public entry - returns managed arrays for scores and types.
         ///     Blocks until job completes.
         /// </summary>
-        public static VerticesClassificationResult ClassifyAllVertices(
+        public static WeaponMeshClassificationResult ClassifyAllVertices(
             [NotNull] Mesh mesh,
             WeaponEdgeClassifierParams p)
         {
             if (mesh == null) throw new ArgumentNullException(nameof(mesh));
             int vc = mesh.vertexCount;
-            if (vc == 0) return new VerticesClassificationResult(Array.Empty<float>(), Array.Empty<EdgeType>());
+            if (vc == 0) return new WeaponMeshClassificationResult(Array.Empty<float>(), Array.Empty<WeaponEdgeType>());
 
             // Validate normals exist
             Vector3[] normals = mesh.normals;
@@ -35,7 +35,7 @@ namespace WeaponsMath
                 throw new InvalidOperationException("Mesh must have normals (mesh.normals).");
 
             // Build or get adjacency flattened arrays
-            AdjacencyDataFlattened data = GetOrBuildAdjacencyFlattened(mesh);
+            WeaponMeshAdjacencyDataFlattened data = GetOrBuildAdjacencyFlattened(mesh);
 
             // Convert managed arrays to NativeArray read-only views for job
             NativeArray<Vector3> verticesNative = new(mesh.vertices, Allocator.TempJob);
@@ -47,7 +47,7 @@ namespace WeaponsMath
             NativeArray<byte> typesNative = new(vc, Allocator.TempJob);
 
             // Schedule job to classify vertices
-            ClassifyVerticesJob job = new()
+            ClassifyWeaponVerticesJob job = new()
             {
                 vertices = verticesNative,
                 normals = normalsNative,
@@ -72,9 +72,9 @@ namespace WeaponsMath
 
             // Copy back to managed arrays
             float[] scores = new float[vc];
-            EdgeType[] types = new EdgeType[vc];
+            WeaponEdgeType[] types = new WeaponEdgeType[vc];
             scoresNative.CopyTo(scores);
-            for (int i = 0; i < vc; ++i) types[i] = (EdgeType) typesNative[i];
+            for (int i = 0; i < vc; ++i) types[i] = (WeaponEdgeType) typesNative[i];
 
             // Dispose
             verticesNative.Dispose();
@@ -85,15 +85,15 @@ namespace WeaponsMath
             typesNative.Dispose();
 
             // Return result
-            return new VerticesClassificationResult(scores, types);
+            return new WeaponMeshClassificationResult(scores, types);
         }
 
 #region Adjacency tables with flattening
 
-        private static AdjacencyDataFlattened GetOrBuildAdjacencyFlattened([NotNull] Mesh mesh)
+        private static WeaponMeshAdjacencyDataFlattened GetOrBuildAdjacencyFlattened([NotNull] Mesh mesh)
         {
             int id = mesh.GetInstanceID();
-            if (adjacencyCache.TryGetValue(id, out AdjacencyDataFlattened cached)) return cached;
+            if (adjacencyCache.TryGetValue(id, out WeaponMeshAdjacencyDataFlattened cached)) return cached;
 
             // Build adjacency as lists first
             List<int>[] lists = BuildAdjacencyLists(mesh);
@@ -117,7 +117,7 @@ namespace WeaponsMath
                 for (int j = 0; j < list.Count; ++j) neighbors[offset + j] = list[j];
             }
 
-            cached = new AdjacencyDataFlattened(starts, neighbors);
+            cached = new WeaponMeshAdjacencyDataFlattened(starts, neighbors);
             adjacencyCache[id] = cached;
             return cached;
         }

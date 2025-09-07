@@ -1,6 +1,6 @@
 ﻿namespace WeaponsMath.Enums
 {
-    public enum EdgeType : byte
+    public enum WeaponEdgeType : byte
     {
         Blunt = 0,
         Blade = 1,

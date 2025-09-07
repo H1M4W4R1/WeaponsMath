@@ -24,14 +24,14 @@ Okay, unless you're using too complex mesh.
 
 # How to use
 
-Simply create a weapon with mesh and call `VertexEdgeClassifier.ClassifyAllVertices` on that mesh. Provide all 
+Simply create a weapon with mesh and call `WeaponEdgeClassifier.ClassifyAllVertices` on that mesh. Provide all 
 necessary parameters and you should be fine.
 
 It is heavily recommended to have separate mesh for computation as any decorations (like embossed patterns) will 
 generate very non-predictable results and may be marked as blade or spike when it should be blunt. Also: low-poly 
 meshes work way better than high-poly ones. It's faster to compute them, and they yield better results.
 
-You can see `VertexEdgeTypeDrawer.cs` for analysis purposes.
+You can see `WeaponEdgeTypeDrawer.cs` for analysis purposes.
 
 # Support
 

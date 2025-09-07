@@ -3,6 +3,7 @@ using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
+using WeaponsMath.Data;
 using WeaponsMath.Enums;
 
 namespace WeaponsMath.Jobs
@@ -11,7 +12,7 @@ namespace WeaponsMath.Jobs
     ///     Job used to classify vertices based on their neighbors
     /// </summary>
     [BurstCompile(FloatMode = FloatMode.Default, OptimizeFor = OptimizeFor.Performance)]
-    internal struct ClassifyVerticesJob : IJobParallelFor
+    internal struct ClassifyWeaponVerticesJob : IJobParallelFor
     {
         [ReadOnly] public NativeArray<Vector3> vertices;
         [ReadOnly] public NativeArray<Vector3> normals;
@@ -38,7 +39,7 @@ namespace WeaponsMath.Jobs
             if (maxCollected <= 0)
             {
                 outScores[vi] = 0f;
-                outTypes[vi] = (byte) EdgeType.Blunt;
+                outTypes[vi] = (byte) WeaponEdgeType.Blunt;
                 return;
             }
 
@@ -60,9 +61,8 @@ namespace WeaponsMath.Jobs
 
 
             // Clamp maxCollected to a safe compile-time constant
-            const int CONST_MAX_COLLECTED = 1024;
-            if (maxCollected > CONST_MAX_COLLECTED)
-                maxCollected = CONST_MAX_COLLECTED;
+            if (maxCollected > WeaponEdgeClassifierParams.MAX_COLLECTED)
+                maxCollected = WeaponEdgeClassifierParams.MAX_COLLECTED;
 
             float sumWeightedAbsDot = 0f;
             float sumWeights = 0f;
@@ -76,7 +76,7 @@ namespace WeaponsMath.Jobs
                 int start = neighborStarts[vi];
                 int end = neighborStarts[vi + 1];
                 int neighborSeen = 0;
-                
+
                 // Iterate over neighbors
                 for (int nIdx = start; nIdx < end; ++nIdx)
                 {
@@ -112,14 +112,17 @@ namespace WeaponsMath.Jobs
                 // Simplified iterative expansion: sample neighbors, then neighbors-of-neighbors up to depth
                 // This will count duplicates across layers, but produces a useful approximation and is Burst-safe.
                 // (If you need exact BFS with visited deduplicate across all depth, you will have a bad day).
-                int* layer = stackalloc int[32]; // small stack buffer for current layer (32 neighbors typical)
-                int* nextLayer = stackalloc int[128]; // slightly larger next layer buffer
+                int* layer =
+                    stackalloc int[math.max(WeaponEdgeClassifierParams.MAX_NEIGHBORS / 2,
+                        32)]; // small stack buffer for current layer (32 neighbors typical)
+                int* nextLayer =
+                    stackalloc int[WeaponEdgeClassifierParams.MAX_NEIGHBORS]; // slightly larger next layer buffer
 
                 // Initialize layer with direct neighbors
                 int start = neighborStarts[vi];
                 int end = neighborStarts[vi + 1];
                 int count = 0;
-                
+
                 // Copy neighbors to layer
                 for (int nIdx = start; nIdx < end; ++nIdx)
                 {
@@ -140,7 +143,7 @@ namespace WeaponsMath.Jobs
                     for (int li = 0; li < layerCount; ++li)
                     {
                         int idx = layer[li];
-                        
+
                         // Compute contribution
                         Vector3 v = vertices[idx] - origin;
                         float sqr = v.x * v.x + v.y * v.y + v.z * v.z;
@@ -205,11 +208,11 @@ namespace WeaponsMath.Jobs
             // Classify
             byte type;
             if (avgAbsDot <= splitLow)
-                type = (byte) EdgeType.Blunt;
+                type = (byte) WeaponEdgeType.Blunt;
             else if (avgAbsDot >= splitHigh)
-                type = (byte) EdgeType.Spike;
+                type = (byte) WeaponEdgeType.Spike;
             else
-                type = (byte) EdgeType.Blade;
+                type = (byte) WeaponEdgeType.Blade;
 
             outScores[vi] = score;
             outTypes[vi] = type;
