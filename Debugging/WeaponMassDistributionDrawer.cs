@@ -17,8 +17,14 @@ namespace WeaponsMath.Debugging
             Mesh mesh = meshFilter.sharedMesh;
             if (mesh == null) return;
 
+            if (!attachmentPoint) return;
+            
             float[] mass = ComputeVertexMasses(mesh, 1f);
             Vector3 attachmentPointWorldPosition = attachmentPoint.position;
+            
+            // Draw attachment point
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawSphere(attachmentPointWorldPosition, baseSphereRadius * 0.02f);
             
             Transform meshTransform = meshFilter.transform;
 
