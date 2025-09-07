@@ -4,6 +4,7 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
 using WeaponsMath.Data;
+using WeaponsMath.Enums;
 
 namespace WeaponsMath.Jobs
 {
@@ -29,14 +30,14 @@ namespace WeaponsMath.Jobs
         public int maxCollected;
 
         // Outputs
-        [WriteOnly] public NativeArray<float> outScores; // [0..2]
+        [WriteOnly] public NativeArray<WeaponEdgeType> outEdges;
 
         public unsafe void Execute(int vi)
         {
             // Validate small maxCollected; must be >0
             if (maxCollected <= 0)
             {
-                outScores[vi] = 0f;
+                outEdges[vi] = 0f;
                 return;
             }
 
@@ -201,7 +202,19 @@ namespace WeaponsMath.Jobs
             // Compute final score
             float avgAbsDot = (sumWeights <= 0f) ? 0f : (sumWeightedAbsDot / sumWeights);
             float score = math.clamp(avgAbsDot * 2f, 0f, 2f);
-            outScores[vi] = score;
+
+            // Classify
+            byte type;
+            float normalizedScore = math.remap(0f, 2f, 0f, 1f, score);
+
+            if (normalizedScore <= splitLow)
+                type = (byte) WeaponEdgeType.Blunt;
+            else if (normalizedScore >= splitHigh)
+                type = (byte) WeaponEdgeType.Spike;
+            else
+                type = (byte) WeaponEdgeType.Blade;
+
+            outEdges[vi] = (WeaponEdgeType) type;
         }
     }
 }

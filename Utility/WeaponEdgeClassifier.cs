@@ -24,7 +24,7 @@ namespace WeaponsMath.Utility
         [BurstDiscard] public static void ClassifyAllVertices(
             [NotNull] Mesh mesh,
             WeaponEdgeClassifierParams p,
-            out NativeArray<float> scores,
+            out NativeArray<WeaponEdgeType> edges,
             Allocator allocator = Allocator.TempJob)
         {
             Assert.IsNotNull(mesh, "Mesh must not be null");
@@ -38,7 +38,7 @@ namespace WeaponsMath.Utility
             Vector3[] normalsArray = mesh.normals;
 
             // Classify vertices
-            ClassifyAllVertices(verticesArray, normalsArray, p, data, out scores, allocator);
+            ClassifyAllVertices(verticesArray, normalsArray, p, data, out edges, allocator);
         }
 
         /// <summary>
@@ -49,7 +49,7 @@ namespace WeaponsMath.Utility
             [NotNull] Vector3[] normalsArray,
             WeaponEdgeClassifierParams p,
             WeaponMeshAdjacencyDataFlattened data,
-            out NativeArray<float> scores,
+            out NativeArray<WeaponEdgeType> edges,
             Allocator allocator = Allocator.TempJob)
         {
             Assert.IsNotNull(verticesArray, "Vertices array must not be null");
@@ -65,7 +65,7 @@ namespace WeaponsMath.Utility
             NativeArray<Vector3> normals = new(normalsArray, Allocator.TempJob);
 
             // Base classification entry point
-            ClassifyAllVertices(vertices, normals, p, data, out scores, out JobHandle handle, allocator);
+            ClassifyAllVertices(vertices, normals, p, data, out edges, out JobHandle handle, allocator);
             handle.Complete();
 
             // Dispose native arrays
@@ -81,7 +81,7 @@ namespace WeaponsMath.Utility
             in NativeArray<Vector3> normals,
             in WeaponEdgeClassifierParams p,
             in WeaponMeshAdjacencyDataFlattened weaponAdjacencyData,
-            out NativeArray<float> scores,
+            out NativeArray<WeaponEdgeType> edges,
             out JobHandle handle,
             Allocator allocator = Allocator.TempJob)
         {
@@ -91,7 +91,7 @@ namespace WeaponsMath.Utility
             Assert.IsTrue(vertices.Length == normals.Length, "Vertices and normals must have the same length");
             Assert.IsTrue(vertices.Length > 0, "Vertices must not be empty");
             
-            scores = new NativeArray<float>(vertices.Length, allocator);
+            edges = new NativeArray<WeaponEdgeType>(vertices.Length, allocator);
 
             // Schedule job to classify vertices
             ClassifyWeaponVerticesJob job = new()
@@ -110,33 +110,10 @@ namespace WeaponsMath.Utility
                 minSqrDistance = p.minSqrDistance,
                 maxCollected = p.maxCollected,
 
-                outScores = scores,
+                outEdges = edges,
             };
 
             handle = job.Schedule(vertices.Length, 64); // batch size 64
-        }
-
-        /// <summary>
-        ///     Classifies a single vertex score based on the given parameters.
-        /// </summary>
-        /// <param name="score">Score of vertex</param>
-        /// <param name="p">Parameters for classification</param>
-        /// <returns>Classified edge type</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static WeaponEdgeType ClassifyVertexScore(float score, in WeaponEdgeClassifierParams p)
-        {
-            // Classify
-            byte type;
-            float normalizedScore = math.remap(0f, 2f, 0f, 1f, score);
-
-            if (normalizedScore <= p.splitLow)
-                type = (byte) WeaponEdgeType.Blunt;
-            else if (normalizedScore >= p.splitHigh)
-                type = (byte) WeaponEdgeType.Spike;
-            else
-                type = (byte) WeaponEdgeType.Blade;
-
-            return (WeaponEdgeType) type;
         }
 
 #region Adjacency tables with flattening

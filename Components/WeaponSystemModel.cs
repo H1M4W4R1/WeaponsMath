@@ -18,7 +18,8 @@ namespace WeaponsMath.Components
         public NativeArray<int> Triangles => triangles;
         public NativeArray<Vector3> Normals => normals;
         
-        public Mesh Mesh => _meshFilter.sharedMesh;
+        [field: SerializeField, HideInInspector]
+        public Mesh Mesh { get; private set; }
         
         private void Awake()
         {
@@ -34,12 +35,12 @@ namespace WeaponsMath.Components
         {
             // Pre-compute data
             _meshFilter = GetComponent<MeshFilter>();
-            Mesh mesh = _meshFilter.sharedMesh;
-            Assert.IsNotNull(mesh, "Mesh is null");
+            Mesh = _meshFilter.sharedMesh;
+            Assert.IsNotNull(Mesh, "Mesh is null");
             
-            vertices = new NativeArray<Vector3>(mesh.vertices, Allocator.Persistent);
-            triangles = new NativeArray<int>(mesh.triangles, Allocator.Persistent);
-            normals = new NativeArray<Vector3>(mesh.normals, Allocator.Persistent);
+            vertices = new NativeArray<Vector3>(Mesh.vertices, Allocator.Persistent);
+            triangles = new NativeArray<int>(Mesh.triangles, Allocator.Persistent);
+            normals = new NativeArray<Vector3>(Mesh.normals, Allocator.Persistent);
         }
 
         private void OnDestroy()

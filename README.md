@@ -24,14 +24,12 @@ Okay, unless you're using too complex mesh.
 
 # How to use
 
-Simply create a weapon with mesh and call `WeaponEdgeClassifier.ClassifyAllVertices` on that mesh. Provide all 
-necessary parameters and you should be fine.
+Simply create a weapon model and assign `VertexVelocityComponent`, and `WeaponVertexDataComponent` to it.
+Then configure `WeaponVertexDataComponent` with desired parameters. You can enable debugging to see the results
+in the scene view (at least for `WeaponVertexDataComponent` as velocity component in time-based).
 
-It is heavily recommended to have separate mesh for computation as any decorations (like embossed patterns) will 
-generate very non-predictable results and may be marked as blade or spike when it should be blunt. Also: low-poly 
-meshes work way better than high-poly ones. It's faster to compute them, and they yield better results.
-
-You can see `WeaponEdgeTypeDrawer.cs` for analysis purposes.
+You can then access necessary data from components when two objects collide. A simplified HAL API is going to be 
+created in future.
 
 # Support
 

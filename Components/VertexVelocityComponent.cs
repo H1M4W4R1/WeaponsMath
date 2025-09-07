@@ -28,6 +28,8 @@ namespace WeaponsMath.Components
         private Transform _modelTransform;
         private Vector3 _lastPosition;
         private Quaternion _lastRotation;
+        
+        public NativeArray<Vector3> Velocities => _vertexVelocities;
 
         /// <summary>
         ///     Gets the velocity for the given point.
