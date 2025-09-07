@@ -1,4 +1,5 @@
 ﻿using Unity.Collections;
+using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Assertions;
 using WeaponsMath.Utility;
@@ -12,10 +13,11 @@ namespace WeaponsMath.Components
     /// </summary>
     [RequireComponent(typeof(WeaponSystemModel))] public sealed class VertexVelocityComponent : MonoBehaviour
     {
-        [Header("Configuration")] [SerializeField]
+        [Header("Configuration")]
+        [SerializeField]
         [Tooltip("Alternatively: how long should swing last to grant full energy")]
-        private float energyCalculationFrame = 1f;
-        
+        private float expectedAttackTime = 1f;
+
         [Header("Debug")] [SerializeField] private bool enableDebug;
         [SerializeField] private float debugLineLength = 1f;
 
@@ -23,6 +25,7 @@ namespace WeaponsMath.Components
         ///     Stash of per-vertex velocity data
         /// </summary>
         private NativeArray<Vector3> _vertexVelocities;
+
         private NativeArray<Vector3> _lastVertexPositions;
 
         private float _accumulatedTime;
@@ -31,7 +34,7 @@ namespace WeaponsMath.Components
         private Transform _modelTransform;
         private Vector3 _lastPosition;
         private Quaternion _lastRotation;
-        
+
         public NativeArray<Vector3> Velocities => _vertexVelocities;
 
         /// <summary>
@@ -90,7 +93,7 @@ namespace WeaponsMath.Components
             // We use mesh to ensure proper allocation
             _vertexVelocities = new NativeArray<Vector3>(_model.Mesh.vertexCount, Allocator.Persistent);
             _lastVertexPositions = new NativeArray<Vector3>(_model.Mesh.vertexCount, Allocator.Persistent);
-            
+
             // Initialize last vertex positions
             for (int n = 0; n < _model.Mesh.vertexCount; n++)
             {
@@ -115,16 +118,19 @@ namespace WeaponsMath.Components
 
                 // Compute vertex velocity
                 Vector3 vertexVelocity;
-                if(_accumulatedTime > 0f) vertexVelocity = (currentVertexPosition - previousVertexPosition) / _accumulatedTime;
-                else vertexVelocity = Vector3.zero;
+                if (_accumulatedTime > 0f)
+                    vertexVelocity = (currentVertexPosition - previousVertexPosition) / _accumulatedTime;
+                else
+                    vertexVelocity = Vector3.zero;
 
-                // Compute delta
-                Vector3 velocityDelta = vertexVelocity - _vertexVelocities[n];
-                if(energyCalculationFrame > 0f)
-                    velocityDelta *= _accumulatedTime / energyCalculationFrame;
+                // Compute time weight, we shall clamp this to ensure proper calculation as Unity sometimes tends
+                // to do weird stuff, especially when frame takes longer than expectedAttackTime
+                float timeWeight = expectedAttackTime > 0
+                    ? math.clamp(_accumulatedTime / expectedAttackTime, 0f, 1f)
+                    : 1f;
                 
-                // Store vertex velocity and last position to array
-                _vertexVelocities[n] += velocityDelta;
+                // Interpolate vertex velocity and store it, same as new position to ensure proper calculation
+                _vertexVelocities[n] = math.lerp(_vertexVelocities[n], vertexVelocity, timeWeight);
                 _lastVertexPositions[n] = currentVertexPosition;
             }
 
