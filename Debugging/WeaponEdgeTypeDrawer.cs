@@ -25,7 +25,6 @@ namespace WeaponsMath.Debugging
         [Tooltip("Movement velocity, used to affect drawn values")] public float velocity = 1f;
 
         private float[] scores;
-        private WeaponEdgeType[] types;
 
         [ContextMenu("Classify")] private void Classify()
         {
@@ -36,7 +35,6 @@ namespace WeaponsMath.Debugging
             // Perform classification and store results
             WeaponMeshClassificationResult result = WeaponEdgeClassifier.ClassifyAllVertices(mesh, parameters);
             scores = result.scores;
-            types = result.types;
         }
 
         private void OnValidate()
@@ -54,7 +52,7 @@ namespace WeaponsMath.Debugging
 
         private void OnDrawGizmosSelected()
         {
-            if (scores == null || types == null) Classify();
+            if (scores == null) Classify();
             if (meshFilter == null) return;
             Mesh mesh = meshFilter.sharedMesh;
             if (mesh == null) return;
@@ -77,7 +75,7 @@ namespace WeaponsMath.Debugging
 
                 float score = scores![i]; // 0..2
                 // visualize: blue=blunt, white=blade, red=spike
-                WeaponEdgeType type = types![i];
+                WeaponEdgeType type = WeaponEdgeClassifier.ClassifyVertexScore(score, parameters);
                 switch (type)
                 {
                     case WeaponEdgeType.Blunt: Gizmos.color = Color.blue; break;

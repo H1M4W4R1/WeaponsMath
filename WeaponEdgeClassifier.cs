@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using JetBrains.Annotations;
-using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -27,24 +27,36 @@ namespace WeaponsMath
         {
             if (mesh == null) throw new ArgumentNullException(nameof(mesh));
             int vc = mesh.vertexCount;
-            if (vc == 0) return new WeaponMeshClassificationResult(Array.Empty<float>(), Array.Empty<WeaponEdgeType>());
-
-            // Validate normals exist
-            Vector3[] normals = mesh.normals;
-            if (normals == null || normals.Length != vc)
-                throw new InvalidOperationException("Mesh must have normals (mesh.normals).");
+            if (vc == 0)
+                return new WeaponMeshClassificationResult(Array.Empty<float>());
 
             // Build or get adjacency flattened arrays
             WeaponMeshAdjacencyDataFlattened data = GetOrBuildAdjacencyFlattened(mesh);
+            
+            // Base classification
+            return ClassifyAllVertices(mesh.vertices, mesh.normals, p, data);
+        }
+
+        public static WeaponMeshClassificationResult ClassifyAllVertices(
+            [NotNull] Vector3[] vertices,
+            [NotNull] Vector3[] normals,
+            WeaponEdgeClassifierParams p,
+            WeaponMeshAdjacencyDataFlattened weaponAdjacencyData)
+        {
+            // Vertex count
+            int vc = vertices.Length;
+
+            // Validate normals exist
+            if (normals == null || normals.Length != vertices.Length)
+                throw new InvalidOperationException("Mesh must have normals (mesh.normals).");
 
             // Convert managed arrays to NativeArray read-only views for job
-            NativeArray<Vector3> verticesNative = new(mesh.vertices, Allocator.TempJob);
+            NativeArray<Vector3> verticesNative = new(vertices, Allocator.TempJob);
             NativeArray<Vector3> normalsNative = new(normals, Allocator.TempJob);
-            NativeArray<int> neighborStartsNative = new(data.neighborStarts, Allocator.TempJob);
-            NativeArray<int> neighborsNative = new(data.neighbors, Allocator.TempJob);
+            NativeArray<int> neighborStartsNative = new(weaponAdjacencyData.neighborStarts, Allocator.TempJob);
+            NativeArray<int> neighborsNative = new(weaponAdjacencyData.neighbors, Allocator.TempJob);
 
             NativeArray<float> scoresNative = new(vc, Allocator.TempJob);
-            NativeArray<byte> typesNative = new(vc, Allocator.TempJob);
 
             // Schedule job to classify vertices
             ClassifyWeaponVerticesJob job = new()
@@ -64,7 +76,6 @@ namespace WeaponsMath
                 maxCollected = p.maxCollected,
 
                 outScores = scoresNative,
-                outTypes = typesNative
             };
 
             JobHandle handle = job.Schedule(vc, 64); // batch size 64
@@ -72,9 +83,7 @@ namespace WeaponsMath
 
             // Copy back to managed arrays
             float[] scores = new float[vc];
-            WeaponEdgeType[] types = new WeaponEdgeType[vc];
             scoresNative.CopyTo(scores);
-            for (int i = 0; i < vc; ++i) types[i] = (WeaponEdgeType) typesNative[i];
 
             // Dispose
             verticesNative.Dispose();
@@ -82,10 +91,32 @@ namespace WeaponsMath
             neighborStartsNative.Dispose();
             neighborsNative.Dispose();
             scoresNative.Dispose();
-            typesNative.Dispose();
 
             // Return result
-            return new WeaponMeshClassificationResult(scores, types);
+            return new WeaponMeshClassificationResult(scores);
+        }
+
+        /// <summary>
+        ///     Classifies a single vertex score based on the given parameters.
+        /// </summary>
+        /// <param name="score">Score of vertex</param>
+        /// <param name="p">Parameters for classification</param>
+        /// <returns>Classified edge type</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static WeaponEdgeType ClassifyVertexScore(float score, in WeaponEdgeClassifierParams p)
+        {
+            // Classify
+            byte type;
+            float normalizedScore = math.remap(0f, 2f, 0f, 1f, score);
+            
+            if (normalizedScore <= p.splitLow)
+                type = (byte) WeaponEdgeType.Blunt;
+            else if (normalizedScore >= p.splitHigh)
+                type = (byte) WeaponEdgeType.Spike;
+            else
+                type = (byte) WeaponEdgeType.Blade;
+            
+            return (WeaponEdgeType) type;
         }
 
 #region Adjacency tables with flattening

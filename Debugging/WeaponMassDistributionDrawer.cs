@@ -6,7 +6,6 @@ namespace WeaponsMath.Debugging
     public sealed class WeaponMassDistributionDrawer : MonoBehaviour
     {
         [Header("Configuration")] public MeshFilter meshFilter;
-        public Transform attachmentPoint;
 
         [Header("Visualization")] [Tooltip("Multiplier for sphere radius, used to make drawing easier to read")]
         public float baseSphereRadius = 0.002f;
@@ -17,33 +16,17 @@ namespace WeaponsMath.Debugging
             Mesh mesh = meshFilter.sharedMesh;
             if (mesh == null) return;
 
-            if (!attachmentPoint) return;
             
             float[] mass = ComputeVertexMasses(mesh, 1f);
-            Vector3 attachmentPointWorldPosition = attachmentPoint.position;
-            
-            // Draw attachment point
-            Gizmos.color = Color.yellow;
-            Gizmos.DrawSphere(attachmentPointWorldPosition, baseSphereRadius * 0.02f);
-            
+
             Transform meshTransform = meshFilter.transform;
 
             Vector3[] verts = mesh.vertices;
 
-            float maxDistance = -1;
             for (int i = 0; i < verts.Length; ++i)
             {
                 Vector3 vertexWorldPosition = meshTransform.TransformPoint(verts[i]);
-                float distance = Vector3.Distance(attachmentPointWorldPosition, vertexWorldPosition);
-                maxDistance = Mathf.Max(maxDistance, distance);
-            }
-
-            for (int i = 0; i < verts.Length; ++i)
-            {
-                Vector3 vertexWorldPosition = meshTransform.TransformPoint(verts[i]);
-                float distance = Vector3.Distance(attachmentPointWorldPosition, vertexWorldPosition);
-                float normalizedDistance = 1.2f - distance / maxDistance;
-                float normalizedFactor = mass[i] * normalizedDistance;
+                float normalizedFactor = mass[i];
 
                 Gizmos.color = Color.Lerp(Color.black, Color.white, normalizedFactor);
                 Gizmos.DrawSphere(vertexWorldPosition, baseSphereRadius * normalizedFactor);
