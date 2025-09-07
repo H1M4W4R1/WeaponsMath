@@ -85,7 +85,7 @@ namespace WeaponsMath.Components
                     _vertexVelocityComponent.Velocities.Length > i)
                 {
                     dotProduct = math.dot(math.normalize(_vertexVelocityComponent.Velocities[i]), normal);
-                    velocity = math.length(_vertexVelocityComponent.Velocities[i]);
+                    velocity = math.lengthsq(_vertexVelocityComponent.Velocities[i]);
                 }
 
                 dotProduct = math.pow(dotProduct, 4);
